@@ -86,8 +86,8 @@ authors (1) ──────< (N) posts (1) ──────< (N) comments
 
 | Tabla | Columnas | Reglas |
 |---|---|---|
-| **authors** | `id`, `name`, `email`, `bio`, `created_at` | `name` NOT NULL y no vacío · `email` NOT NULL y **UNIQUE** |
-| **posts** | `id`, `author_id`, `title`, `content`, `published`, `created_at` | `author_id` **FK → authors.id** (`ON DELETE CASCADE`) · `title` y `content` NOT NULL y no vacíos · `published` por defecto `false` |
+| **authors** | `id`, `name`, `email`, `bio`, `created_at` | `name` NOT NULL, no vacío y de máximo 100 caracteres · `email` NOT NULL y **UNIQUE** |
+| **posts** | `id`, `author_id`, `title`, `content`, `published`, `created_at` | `author_id` **FK → authors.id** (`ON DELETE CASCADE`) · `title` (máximo 200 caracteres) y `content` NOT NULL y no vacíos · `published` por defecto `false` |
 
 > El enunciado indica `author_id (FK -> users.id)`. Como en este modelo la tabla de usuarios se llama `authors`, la FK apunta a `authors.id`.
 | **comments** _(extra credit)_ | `id`, `post_id`, `author_id`, `content`, `created_at` | `post_id` **FK → posts.id** (`ON DELETE CASCADE`) · `author_id` **FK → authors.id** (`ON DELETE SET NULL`) |
@@ -124,6 +124,7 @@ authors (1) ──────< (N) posts (1) ──────< (N) comments
 | Método | Ruta | Descripción | Respuestas |
 |---|---|---|---|
 | GET | `/comments` | Listar comments | 200 |
+| GET | `/comments/:id` | Detalle de un comment | 200 · 400 · 404 |
 | GET | `/posts/:id/comments` | Comments de un post, con el nombre del autor | 200 · 400 · 404 |
 | POST | `/comments` | Crear comment | 201 · 400 |
 | DELETE | `/comments/:id` | Eliminar comment | 204 · 400 · 404 |
@@ -248,11 +249,11 @@ La API queda en `http://localhost:3000` y la documentación en `http://localhost
 ## Tests
 
 ```bash
-npm test                 # corre los 47 tests
+npm test                 # corre los 54 tests
 npm run test:coverage    # además genera el reporte de cobertura (~85% de líneas)
 ```
 
-**47 tests** con **Jest + Supertest**, en dos niveles:
+**54 tests** con **Jest + Supertest**, en dos niveles:
 
 | Archivo | Qué prueba | Cómo |
 |---|---|---|
@@ -334,7 +335,7 @@ Cada `git push` a `main` genera un nuevo deploy automáticamente.
 - **Manejo de errores:** cada controller usa `try/catch` y pasa los errores inesperados con `next(error)` al middleware global `errorHandler.js`, que traduce los errores de PostgreSQL a HTTP:
   - `23505` (valor UNIQUE repetido) → **400** `email already exists`
   - `23503` (FK a un registro inexistente) → **400** `referenced author or post does not exist`
-  - `22P02`, `23502`, `23514` (dato inválido) → **400**
+  - `22P02`, `22001`, `23502`, `23514` (dato inválido o texto demasiado largo) → **400** `invalid data`
   - cualquier otro error → **500** `internal server error` (el detalle se registra en la terminal, no se envía al cliente)
 - **Email duplicado → 400:** respeta la lista de status codes del enunciado (200/201/204/400/404/500). La validación es doble: el middleware revisa que el email tenga `@` y la base garantiza la unicidad con `UNIQUE`.
 - **Integridad referencial:** borrar un author borra sus posts (`CASCADE`); borrar un post borra sus comments (`CASCADE`); borrar un author conserva sus comments en posts de otros, con `author_id = NULL` (`SET NULL`).

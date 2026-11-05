@@ -268,6 +268,17 @@ paths:
   /comments/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Comments]
+      summary: Detalle de un comment
+      responses:
+        "200":
+          description: Comment encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
     delete:
       tags: [Comments]
       summary: Eliminar un comment
@@ -297,7 +308,7 @@ components:
       type: object
       required: [name, email]
       properties:
-        name: { type: string, minLength: 1, example: Ana García }
+        name: { type: string, minLength: 1, maxLength: 100, example: Ana García }
         email: { type: string, format: email, example: ana@example.com }
         bio: { type: string, nullable: true, example: Desarrolladora backend. }
     Post:
@@ -314,7 +325,7 @@ components:
       required: [author_id, title, content]
       properties:
         author_id: { type: integer, minimum: 1, example: 1 }
-        title: { type: string, minLength: 1, example: Introducción a Express }
+        title: { type: string, minLength: 1, maxLength: 200, example: Introducción a Express }
         content: { type: string, minLength: 1, example: Express es un framework minimalista. }
         published: { type: boolean, default: false }
     Comment:
