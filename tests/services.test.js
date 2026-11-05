@@ -91,6 +91,13 @@ describe("posts.service", () => {
 });
 
 describe("comments.service", () => {
+  it("findById devuelve null si el comment no existe", async () => {
+    pool.query.mockResolvedValue({ rows: [] });
+
+    expect(await commentsService.findById(999)).toBeNull();
+    expect(pool.query.mock.calls[0][1]).toEqual([999]);
+  });
+
   it("findByPost trae el nombre del autor con LEFT JOIN", async () => {
     pool.query.mockResolvedValue({ rows: [{ id: 1, author_name: "Luis" }] });
 

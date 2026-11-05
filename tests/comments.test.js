@@ -20,6 +20,32 @@ describe("Comments", () => {
     expect(res.body).toEqual([comment]);
   });
 
+  it("GET /comments/:id responde 200 con el comment", async () => {
+    commentsService.findById.mockResolvedValue(comment);
+
+    const res = await request(app).get("/comments/1");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(comment);
+    expect(commentsService.findById).toHaveBeenCalledWith(1);
+  });
+
+  it("GET /comments/:id responde 404 si no existe", async () => {
+    commentsService.findById.mockResolvedValue(null);
+
+    const res = await request(app).get("/comments/999");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "comment not found" });
+  });
+
+  it("GET /comments/:id responde 400 si el id no es un número", async () => {
+    const res = await request(app).get("/comments/abc");
+
+    expect(res.status).toBe(400);
+    expect(commentsService.findById).not.toHaveBeenCalled();
+  });
+
   it("POST /comments responde 201 con el comment creado", async () => {
     commentsService.create.mockResolvedValue(comment);
 
