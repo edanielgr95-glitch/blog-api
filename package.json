@@ -1,14 +1,16 @@
 {
   "name": "blog-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "API REST de authors, posts y comments con Node.js, Express y PostgreSQL",
+  "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:setup": "node scripts/db.js setup",
     "db:seed": "node scripts/db.js seed",
     "db:reset": "node scripts/db.js seed --force",
-    "db:init": "node scripts/db.js setup && node scripts/db.js seed"
+    "db:init": "node scripts/db.js setup && node scripts/db.js seed",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +20,8 @@
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
     "pg": "^8.23.1"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
