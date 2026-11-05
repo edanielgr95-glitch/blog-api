@@ -251,6 +251,7 @@ La API queda en `http://localhost:3000` y la documentación en `http://localhost
 ```bash
 npm test                 # corre los 54 tests
 npm run test:coverage    # además genera el reporte de cobertura (~85% de líneas)
+npm run test:integration # tests contra una base real (ver abajo)
 ```
 
 **54 tests** con **Jest + Supertest**, en dos niveles:
@@ -260,8 +261,21 @@ npm run test:coverage    # además genera el reporte de cobertura (~85% de líne
 | `tests/authors.test.js`, `tests/posts.test.js`, `tests/comments.test.js` | Endpoints CRUD: rutas, validaciones, controllers, status codes y manejo de errores | Supertest hace requests reales a la app; los **services** se reemplazan por mocks |
 | `tests/services.test.js` | Lógica de los services: que cada consulta sea **parametrizada** y devuelva lo esperado | El **Pool** de PostgreSQL se reemplaza por un mock |
 
-- Cubren los flujos exitosos (200, 201, 204) y los de error: 400 por validación, JSON inválido, email duplicado o FK inexistente; 404; 500 por falla de la base; y rutas inexistentes.
+- Cubren los flujos exitosos (200, 201, 204) y los de error: 400 por validación, JSON inválido, email duplicado, FK inexistente o texto demasiado largo; 404; 500 por falla de la base; y rutas inexistentes.
 - **No necesitan base de datos**, así que corren en cualquier máquina con `npm install`.
+
+### Tests de integración (con una base PostgreSQL real)
+
+Además, `tests/integration/` tiene **7 tests sin mocks**, que prueban la API contra una base real. Verifican lo que los mocks no pueden: que los datos se guarden, el `UNIQUE` del email, las FK, la paginación y el borrado en cascada (`CASCADE` y `SET NULL`).
+
+> ⚠️ Usan una **base de pruebas separada**, porque vacían sus tablas antes de cada test. **Nunca** apuntes `TEST_DATABASE_URL` a la base de producción.
+
+```bash
+createdb blog_api_test
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/blog_api_test npm run test:integration
+```
+
+Sin `TEST_DATABASE_URL`, estos tests se saltan solos.
 
 ---
 
@@ -355,7 +369,7 @@ Cada `git push` a `main` genera un nuevo deploy automáticamente.
 | Consultas SQL parametrizadas en services | `src/services/` |
 | Conexión con `pg` y `Pool` | `src/db/pool.js` |
 | Scripts SQL de setup y seed | `db/setup.sql`, `db/seed.sql`, `npm run db:init` |
-| Tests con supertest, ejecutables por npm | `tests/` · `npm test` |
+| Tests con supertest, ejecutables por npm | `tests/` · `npm test` · `npm run test:integration` |
 | Documentación OpenAPI | `openapi.yaml` · `/docs` |
 | `.env.example` (sin subir `.env`) | `.env.example` · `.gitignore` |
 | Deploy en Railway | sección [Deploy en Railway](#deploy-en-railway) |

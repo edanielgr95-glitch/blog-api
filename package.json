@@ -11,7 +11,8 @@
     "db:init": "node scripts/db.js setup && node scripts/db.js seed",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest tests/integration --testPathIgnorePatterns=/node_modules/ --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +33,10 @@
     "supertest": "^7.3.1"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/integration/"
+    ]
   }
 }
