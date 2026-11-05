@@ -50,10 +50,62 @@ function validateAuthor(req, res, next) {
   next();
 }
 
+function validatePost(req, res, next) {
+  const { author_id, title, content, published } = req.body ?? {};
+  const details = [];
+
+  if (!isPositiveInteger(author_id)) {
+    details.push({ field: "author_id", issue: "is required and must be a positive integer" });
+  }
+  if (!isNonEmptyString(title)) {
+    details.push({ field: "title", issue: "is required" });
+  }
+  if (!isNonEmptyString(content)) {
+    details.push({ field: "content", issue: "is required" });
+  }
+  if (published !== undefined && typeof published !== "boolean") {
+    details.push({ field: "published", issue: "must be a boolean" });
+  }
+
+  if (details.length) return next(fail(details));
+
+  req.body = {
+    author_id: Number(author_id),
+    title: title.trim(),
+    content: content.trim(),
+    published: published ?? false,
+  };
+  next();
+}
+
+// Paginación y filtro para GET /posts: ?limit=10&offset=0&published=true
+function validatePostsQuery(req, res, next) {
+  const { limit = "20", offset = "0", published } = req.query;
+  const details = [];
+
+  if (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
+    details.push({ field: "limit", issue: "must be an integer between 1 and 100" });
+  }
+  if (!/^\d+$/.test(offset)) {
+    details.push({ field: "offset", issue: "must be an integer >= 0" });
+  }
+  if (published !== undefined && published !== "true" && published !== "false") {
+    details.push({ field: "published", issue: "must be true or false" });
+  }
+
+  if (details.length) return next(fail(details));
+
+  res.locals.query = {
+    limit: Number(limit),
+    offset: Number(offset),
+    published: published === undefined ? undefined : published === "true",
+  };
+  next();
+}
+
 module.exports = {
   validateIdParam,
   validateAuthor,
-  isNonEmptyString,
-  isPositiveInteger,
-  fail,
+  validatePost,
+  validatePostsQuery,
 };

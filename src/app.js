@@ -1,6 +1,7 @@
 const express = require("express");
 const logger = require("./middlewares/logger");
 const authorsRoutes = require("./routes/authors.routes");
+const postsRoutes = require("./routes/posts.routes");
 const { errorHandler, notFoundHandler } = require("./middlewares/errorHandler");
 
 const app = express();
@@ -20,6 +21,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/authors", authorsRoutes);
+app.use("/posts", postsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
