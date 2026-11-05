@@ -103,8 +103,33 @@ function validatePostsQuery(req, res, next) {
   next();
 }
 
+function validateComment(req, res, next) {
+  const { post_id, author_id, content } = req.body ?? {};
+  const details = [];
+
+  if (!isPositiveInteger(post_id)) {
+    details.push({ field: "post_id", issue: "is required and must be a positive integer" });
+  }
+  if (!isPositiveInteger(author_id)) {
+    details.push({ field: "author_id", issue: "is required and must be a positive integer" });
+  }
+  if (!isNonEmptyString(content)) {
+    details.push({ field: "content", issue: "is required" });
+  }
+
+  if (details.length) return next(fail(details));
+
+  req.body = {
+    post_id: Number(post_id),
+    author_id: Number(author_id),
+    content: content.trim(),
+  };
+  next();
+}
+
 module.exports = {
   validateIdParam,
+  validateComment,
   validateAuthor,
   validatePost,
   validatePostsQuery,
