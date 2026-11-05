@@ -1,5 +1,7 @@
 const express = require("express");
 const logger = require("./middlewares/logger");
+const authorsRoutes = require("./routes/authors.routes");
+const { errorHandler, notFoundHandler } = require("./middlewares/errorHandler");
 
 const app = express();
 
@@ -16,5 +18,10 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", uptime: process.uptime() });
 });
+
+app.use("/authors", authorsRoutes);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
