@@ -1,0 +1,382 @@
+openapi: 3.0.3
+info:
+  title: Blog API
+  version: 1.0.0
+  description: |
+    API REST para gestionar authors, posts y comments (modelo tipo JSONPlaceholder).
+    Construida con Node.js, Express y PostgreSQL.
+
+    Todos los errores tienen el mismo formato:
+    `{ "error": { "code": "...", "message": "...", "details": [...] } }`
+servers:
+  - url: /
+    description: Servidor actual
+tags:
+  - name: Authors
+  - name: Posts
+  - name: Comments
+  - name: Health
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Estado del servidor
+      responses:
+        "200":
+          description: El servidor está funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  uptime: { type: number, example: 12.5 }
+
+  /authors:
+    get:
+      tags: [Authors]
+      summary: Listar authors
+      responses:
+        "200":
+          description: Lista de authors
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Author" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [Authors]
+      summary: Crear un author
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorInput" }
+      responses:
+        "201":
+          description: Author creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Author" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409": { $ref: "#/components/responses/Duplicate" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /authors/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Authors]
+      summary: Detalle de un author
+      responses:
+        "200":
+          description: Author encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Author" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Authors]
+      summary: Actualizar un author
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorInput" }
+      responses:
+        "200":
+          description: Author actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Author" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Duplicate" }
+    delete:
+      tags: [Authors]
+      summary: Eliminar un author (borra también sus posts)
+      responses:
+        "204": { description: Author eliminado }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /posts:
+    get:
+      tags: [Posts]
+      summary: Listar posts (con paginación y filtro)
+      parameters:
+        - name: limit
+          in: query
+          description: Cantidad máxima de posts (1 a 100)
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          description: Cuántos posts saltar
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: published
+          in: query
+          description: Filtrar por publicados (true) o borradores (false)
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Lista de posts
+          headers:
+            X-Total-Count:
+              description: Total de posts que cumplen el filtro (sin paginar)
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Post" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+    post:
+      tags: [Posts]
+      summary: Crear un post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostInput" }
+      responses:
+        "201":
+          description: Post creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "400":
+          description: Datos inválidos o el author_id no existe
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /posts/author/{authorId}:
+    parameters:
+      - name: authorId
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Posts]
+      summary: Posts de un author, con el detalle del author
+      responses:
+        "200":
+          description: Author y sus posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  author: { $ref: "#/components/schemas/Author" }
+                  posts:
+                    type: array
+                    items: { $ref: "#/components/schemas/Post" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /posts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Posts]
+      summary: Detalle de un post
+      responses:
+        "200":
+          description: Post encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Posts]
+      summary: Actualizar un post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostInput" }
+      responses:
+        "200":
+          description: Post actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Posts]
+      summary: Eliminar un post (borra también sus comments)
+      responses:
+        "204": { description: Post eliminado }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /posts/{id}/comments:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Comments]
+      summary: Comments de un post
+      responses:
+        "200":
+          description: Lista de comments del post
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CommentWithAuthor" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /comments:
+    get:
+      tags: [Comments]
+      summary: Listar comments
+      responses:
+        "200":
+          description: Lista de comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Comment" }
+    post:
+      tags: [Comments]
+      summary: Crear un comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommentInput" }
+      responses:
+        "201":
+          description: Comment creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comment" }
+        "400":
+          description: Datos inválidos o el post_id / author_id no existe
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /comments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [Comments]
+      summary: Eliminar un comment
+      responses:
+        "204": { description: Comment eliminado }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+
+  schemas:
+    Author:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Ana García }
+        email: { type: string, format: email, example: ana@example.com }
+        bio: { type: string, nullable: true, example: Desarrolladora backend. }
+        created_at: { type: string, format: date-time }
+    AuthorInput:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string, minLength: 1, example: Ana García }
+        email: { type: string, format: email, example: ana@example.com }
+        bio: { type: string, nullable: true, example: Desarrolladora backend. }
+    Post:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        author_id: { type: integer, example: 1 }
+        title: { type: string, example: Introducción a Express }
+        content: { type: string, example: Express es un framework minimalista. }
+        published: { type: boolean, example: true }
+        created_at: { type: string, format: date-time }
+    PostInput:
+      type: object
+      required: [author_id, title, content]
+      properties:
+        author_id: { type: integer, minimum: 1, example: 1 }
+        title: { type: string, minLength: 1, example: Introducción a Express }
+        content: { type: string, minLength: 1, example: Express es un framework minimalista. }
+        published: { type: boolean, default: false }
+    Comment:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        post_id: { type: integer, example: 1 }
+        author_id: { type: integer, nullable: true, example: 2 }
+        content: { type: string, example: "¡Muy claro, gracias!" }
+        created_at: { type: string, format: date-time }
+    CommentWithAuthor:
+      allOf:
+        - $ref: "#/components/schemas/Comment"
+        - type: object
+          properties:
+            author_name: { type: string, nullable: true, example: Luis Pérez }
+    CommentInput:
+      type: object
+      required: [post_id, author_id, content]
+      properties:
+        post_id: { type: integer, minimum: 1, example: 1 }
+        author_id: { type: integer, minimum: 1, example: 2 }
+        content: { type: string, minLength: 1, example: "¡Muy claro, gracias!" }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string, example: Invalid request data }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string, example: name }
+                  issue: { type: string, example: is required }
+
+  responses:
+    ValidationError:
+      description: Datos de entrada inválidos
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: El recurso no existe
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            error: { code: NOT_FOUND, message: Author not found }
+    Duplicate:
+      description: El email ya está registrado
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            error: { code: DUPLICATE, message: A record with that value already exists }
+    InternalError:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example:
+            error: { code: INTERNAL_ERROR, message: Internal server error }
