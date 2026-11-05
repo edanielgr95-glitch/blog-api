@@ -58,7 +58,7 @@ blog-api/
 │   ├── services/              # Acceso a datos: queries SQL parametrizadas
 │   ├── middlewares/
 │   │   ├── validate.js        # Validación de body, params y query
-│   │   ├── errorHandler.js    # Manejo global de errores (400/404/409/500)
+│   │   ├── errorHandler.js    # Manejo global de errores (400/404/500)
 │   │   └── logger.js          # Log de cada request (método, ruta, status, tiempo)
 │   └── utils/httpError.js     # Clase de error HTTP
 ├── tests/                     # Tests con Jest + Supertest
@@ -90,6 +90,8 @@ authors (1) ──────< (N) posts (1) ──────< (N) comments
 |---|---|---|
 | **authors** | `id`, `name`, `email`, `bio`, `created_at` | `name` NOT NULL y no vacío · `email` NOT NULL y **UNIQUE** |
 | **posts** | `id`, `author_id`, `title`, `content`, `published`, `created_at` | `author_id` **FK → authors.id** (`ON DELETE CASCADE`) · `title` y `content` NOT NULL y no vacíos · `published` por defecto `false` |
+
+> El enunciado indica `author_id (FK -> users.id)`. Como en este modelo la tabla de usuarios se llama `authors`, la FK apunta a `authors.id`.
 | **comments** _(extra credit)_ | `id`, `post_id`, `author_id`, `content`, `created_at` | `post_id` **FK → posts.id** (`ON DELETE CASCADE`) · `author_id` **FK → authors.id** (`ON DELETE SET NULL`) |
 
 Índices: `posts(author_id)`, `comments(post_id)` y `comments(author_id)`, para acelerar las búsquedas por relación.
@@ -104,8 +106,8 @@ authors (1) ──────< (N) posts (1) ──────< (N) comments
 |---|---|---|---|
 | GET | `/authors` | Listar authors | 200 |
 | GET | `/authors/:id` | Detalle de un author | 200 · 400 · 404 |
-| POST | `/authors` | Crear author | 201 · 400 · 409 |
-| PUT | `/authors/:id` | Actualizar author | 200 · 400 · 404 · 409 |
+| POST | `/authors` | Crear author | 201 · 400 |
+| PUT | `/authors/:id` | Actualizar author | 200 · 400 · 404 |
 | DELETE | `/authors/:id` | Eliminar author (y sus posts) | 204 · 400 · 404 |
 
 ### Posts
@@ -203,10 +205,17 @@ Edita `.env`:
 
 > Con la opción A, crea antes la base con `createdb blog_api`. Con la opción B, pega en `DATABASE_URL` la `DATABASE_PUBLIC_URL` de Railway.
 
-**3. Crear las tablas y cargar datos de ejemplo**
+**3. Ejecutar el setup SQL (crear tablas) y el seed (datos de ejemplo)**
 
 ```bash
 npm run db:init
+```
+
+O directamente con `psql`, si lo tienes instalado:
+
+```bash
+psql "$DATABASE_URL" -f db/setup.sql
+psql "$DATABASE_URL" -f db/seed.sql
 ```
 
 | Script | Qué hace |
@@ -230,13 +239,19 @@ La API queda en `http://localhost:3000` y la documentación en `http://localhost
 ## Tests
 
 ```bash
-npm test                 # corre los 37 tests
-npm run test:coverage    # además genera el reporte de cobertura
+npm test                 # corre los 45 tests
+npm run test:coverage    # además genera el reporte de cobertura (~88% de líneas)
 ```
 
-- **37 tests** en `tests/` (authors, posts, comments y rutas generales) con **Jest + Supertest**.
-- Cubren los flujos exitosos (200, 201, 204) y los de error: 400 por validación, JSON inválido o FK inexistente; 404; 409 por email duplicado; 500 por falla de la base; y rutas inexistentes.
-- Los **services se reemplazan por mocks** (`jest.mock`): los tests prueban rutas, validaciones, controllers y manejo de errores **sin necesitar una base de datos**, así que corren en cualquier máquina con `npm install`.
+**45 tests** con **Jest + Supertest**, en dos niveles:
+
+| Archivo | Qué prueba | Cómo |
+|---|---|---|
+| `tests/authors.test.js`, `tests/posts.test.js`, `tests/comments.test.js` | Endpoints CRUD: rutas, validaciones, controllers, status codes y manejo de errores | Supertest hace requests reales a la app; los **services** se reemplazan por mocks |
+| `tests/services.test.js` | Lógica de los services: que cada consulta sea **parametrizada** y devuelva lo esperado | El **Pool** de PostgreSQL se reemplaza por un mock |
+
+- Cubren los flujos exitosos (200, 201, 204) y los de error: 400 por validación, JSON inválido, email duplicado o FK inexistente; 404; 500 por falla de la base; y rutas inexistentes.
+- **No necesitan base de datos**, así que corren en cualquier máquina con `npm install`.
 - **GitHub Actions** corre los tests en cada push (`.github/workflows/ci.yml`).
 
 ---
@@ -267,12 +282,17 @@ En el mismo proyecto: **+ Create → GitHub Repo →** elegir este repositorio. 
 
 `PORT` no hace falta: Railway lo define solo y la app lo lee con `process.env.PORT`.
 
-### URL interna vs. URL pública de la base
+### Internal URL vs. Public URL
 
-| | Variable | Host | Cuándo se usa |
-|---|---|---|---|
-| **Interna** | `DATABASE_URL` | `postgres.railway.internal:5432` | Desde la API desplegada en Railway (red privada) |
-| **Pública** | `DATABASE_PUBLIC_URL` | `xxxx.proxy.rlwy.net:PUERTO` | Desde tu computadora (scripts o cliente SQL) |
+Railway asigna a cada servicio una URL **interna** (solo accesible dentro del proyecto, por su red privada) y, opcionalmente, una **pública** (accesible desde internet).
+
+| Servicio | Internal URL (red privada de Railway) | Public URL (internet) |
+|---|---|---|
+| **API** | `blog-api.railway.internal` | `https://TU-APP.up.railway.app` (se genera en **Settings → Networking → Generate Domain**) |
+| **PostgreSQL** | `postgres.railway.internal:5432` (variable `DATABASE_URL`) | `xxxx.proxy.rlwy.net:PUERTO` (variable `DATABASE_PUBLIC_URL`, requiere activar **TCP Proxy**) |
+
+- La API se conecta a la base por la **URL interna**: es más rápida, no sale a internet y no consume tráfico público.
+- La **URL pública de la base** solo hace falta para conectarse desde tu computadora (por ejemplo, para correr `npm run db:init` localmente contra Railway).
 
 ### 4. Crear las tablas automáticamente
 
@@ -304,15 +324,35 @@ Cada `git push` a `main` genera un nuevo deploy automáticamente.
 - **Arquitectura en capas** (`routes → middlewares → controllers → services`): cada capa tiene una sola responsabilidad y se puede probar por separado.
 - **Queries parametrizadas** (`$1, $2...`) en todos los services, para evitar SQL injection.
 - **Manejo centralizado de errores** en `errorHandler.js`, que traduce los errores de PostgreSQL a HTTP:
-  - `23505` (unique violation) → **409 Conflict** (email duplicado)
+  - `23505` (unique violation) → **400 Bad Request** (email duplicado)
   - `23503` (foreign key violation) → **400 Bad Request** (author o post inexistente)
   - `22P02`, `23502`, `23514` → **400 Bad Request**
   - cualquier otro error → **500** (sin exponer detalles internos)
-- **Email duplicado → 409:** es el código correcto para un conflicto con un recurso existente. La validación es doble: el middleware revisa el formato y la base garantiza la unicidad con `UNIQUE`.
+- **Email duplicado → 400:** se respeta la lista de status codes del enunciado (200/201/204/400/404/500). La validación es doble: el middleware revisa el formato y la base garantiza la unicidad con `UNIQUE`.
 - **Integridad referencial:** borrar un author borra sus posts (`CASCADE`); borrar un post borra sus comments (`CASCADE`); borrar un author conserva sus comments en posts de otros, con `author_id = NULL` (`SET NULL`).
 - **Express 5:** los errores de funciones `async` llegan solos al middleware de errores, sin `try/catch` en cada controller.
 - **PUT = reemplazo completo:** se exigen todos los campos obligatorios.
 - **Paginación** en `GET /posts` con `limit` (máximo 100) y `offset`; el total se informa en el header `X-Total-Count` para no cambiar el formato de la respuesta.
+
+---
+
+## Cumplimiento del enunciado
+
+| Requisito | Dónde está |
+|---|---|
+| Entidades `authors` y `posts` con los campos pedidos | `db/setup.sql` |
+| Los 11 endpoints REST pedidos | `src/routes/` · tabla [Endpoints](#endpoints) |
+| Validaciones: `name` no vacío, email único, `title`/`content`/`author_id` no vacíos | `src/middlewares/validate.js` + constraints en `db/setup.sql` |
+| Códigos 200/201/204/400/404/500 | `src/controllers/` + `src/middlewares/errorHandler.js` |
+| Consultas SQL parametrizadas en services | `src/services/` |
+| Conexión con `pg` y `Pool` | `src/db/pool.js` |
+| Scripts SQL de setup y seed | `db/setup.sql`, `db/seed.sql`, `npm run db:init` |
+| Tests con supertest, ejecutables por npm | `tests/` · `npm test` |
+| Documentación OpenAPI | `openapi.yaml` · `/docs` |
+| `.env.example` (sin subir `.env`) | `.env.example` · `.gitignore` |
+| Deploy en Railway | sección [Deploy en Railway](#deploy-en-railway) |
+| Extra credit: `comments` con FKs, endpoints y borrado en cascada / `SET NULL` | `db/setup.sql`, `src/*/comments.*` |
+| Registro del uso de IA | sección siguiente y `docs/USO_DE_IA.md` |
 
 ---
 

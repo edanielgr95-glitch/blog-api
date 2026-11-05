@@ -2,7 +2,7 @@ const { HttpError } = require("../utils/httpError");
 
 // Códigos de error de PostgreSQL: https://www.postgresql.org/docs/current/errcodes-appendix.html
 const PG_ERRORS = {
-  23505: { status: 409, code: "DUPLICATE", message: "A record with that value already exists" },
+  23505: { status: 400, code: "DUPLICATE", message: "A record with that value already exists (email must be unique)" },
   23503: { status: 400, code: "INVALID_REFERENCE", message: "A referenced record does not exist" },
   23502: { status: 400, code: "VALIDATION_ERROR", message: "A required field is missing" },
   23514: { status: 400, code: "VALIDATION_ERROR", message: "A field has an invalid value" },

@@ -112,7 +112,7 @@ describe("POST /authors", () => {
     expect(res.body.error.code).toBe("INVALID_JSON");
   });
 
-  it("responde 409 si el email ya existe", async () => {
+  it("responde 400 si el email ya existe", async () => {
     const duplicateError = Object.assign(new Error("duplicate key"), {
       code: "23505",
     });
@@ -122,7 +122,7 @@ describe("POST /authors", () => {
       .post("/authors")
       .send({ name: "Ana", email: "ana@example.com" });
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("DUPLICATE");
   });
 });

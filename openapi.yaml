@@ -61,7 +61,6 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Author" }
         "400": { $ref: "#/components/responses/ValidationError" }
-        "409": { $ref: "#/components/responses/Duplicate" }
         "500": { $ref: "#/components/responses/InternalError" }
 
   /authors/{id}:
@@ -94,7 +93,6 @@ paths:
               schema: { $ref: "#/components/schemas/Author" }
         "400": { $ref: "#/components/responses/ValidationError" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Duplicate" }
     delete:
       tags: [Authors]
       summary: Eliminar un author (borra también sus posts)
@@ -355,7 +353,7 @@ components:
 
   responses:
     ValidationError:
-      description: Datos de entrada inválidos
+      description: Datos de entrada inválidos (en authors incluye el email duplicado)
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -366,13 +364,6 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
           example:
             error: { code: NOT_FOUND, message: Author not found }
-    Duplicate:
-      description: El email ya está registrado
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example:
-            error: { code: DUPLICATE, message: A record with that value already exists }
     InternalError:
       description: Error interno del servidor
       content:
