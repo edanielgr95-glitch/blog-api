@@ -22,8 +22,9 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({ error: "referenced author or post does not exist" });
   }
 
-  // 22P02, 23502, 23514: dato con formato inválido, vacío o que no cumple un CHECK
-  if (err.code === "22P02" || err.code === "23502" || err.code === "23514") {
+  // 22P02: formato inválido · 22001: texto más largo de lo permitido
+  // 23502: falta un dato obligatorio · 23514: no cumple un CHECK
+  if (err.code === "22P02" || err.code === "22001" || err.code === "23502" || err.code === "23514") {
     return res.status(400).json({ error: "invalid data" });
   }
 

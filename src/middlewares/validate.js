@@ -33,6 +33,9 @@ function validateAuthor(req, res, next) {
   if (isEmptyText(name)) {
     details.push({ field: "name", message: "is required" });
   }
+  if (typeof name === "string" && name.trim().length > 100) {
+    details.push({ field: "name", message: "must be at most 100 characters" });
+  }
   if (isEmptyText(email)) {
     details.push({ field: "email", message: "is required" });
   } else if (!email.includes("@")) {
@@ -55,6 +58,9 @@ function validatePost(req, res, next) {
   }
   if (isEmptyText(title)) {
     details.push({ field: "title", message: "is required" });
+  }
+  if (typeof title === "string" && title.trim().length > 200) {
+    details.push({ field: "title", message: "must be at most 200 characters" });
   }
   if (isEmptyText(content)) {
     details.push({ field: "content", message: "is required" });
