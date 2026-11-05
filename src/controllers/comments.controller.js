@@ -21,4 +21,10 @@ async function create(req, res) {
   res.status(201).json(comment);
 }
 
-module.exports = { list, listByPost, create };
+async function remove(req, res) {
+  const deleted = await commentsService.remove(Number(req.params.id));
+  if (!deleted) throw notFound("Comment");
+  res.status(204).send();
+}
+
+module.exports = { list, listByPost, create, remove };

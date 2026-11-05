@@ -32,4 +32,11 @@ async function create({ post_id, author_id, content }) {
   return rows[0];
 }
 
-module.exports = { findAll, findByPost, create };
+async function remove(id) {
+  const { rowCount } = await pool.query("DELETE FROM comments WHERE id = $1", [
+    id,
+  ]);
+  return rowCount > 0;
+}
+
+module.exports = { findAll, findByPost, create, remove };
