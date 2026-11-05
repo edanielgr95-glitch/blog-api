@@ -119,6 +119,19 @@ describe("POST /posts", () => {
     expect(postsService.create).not.toHaveBeenCalled();
   });
 
+  it("responde 400 si el title supera 200 caracteres", async () => {
+    const res = await request(app)
+      .post("/posts")
+      .send({ author_id: 1, title: "a".repeat(201), content: "C" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toContainEqual({
+      field: "title",
+      message: "must be at most 200 characters",
+    });
+    expect(postsService.create).not.toHaveBeenCalled();
+  });
+
   it("responde 400 si el author_id no existe en la base", async () => {
     // Así llega el error de PostgreSQL cuando una FK apunta a algo inexistente
     postsService.create.mockRejectedValue({ code: "23503" });

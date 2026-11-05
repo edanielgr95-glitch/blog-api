@@ -83,6 +83,19 @@ describe("POST /authors", () => {
     expect(authorsService.create).not.toHaveBeenCalled();
   });
 
+  it("responde 400 si el name supera 100 caracteres", async () => {
+    const res = await request(app)
+      .post("/authors")
+      .send({ name: "a".repeat(101), email: "ana@example.com" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toContainEqual({
+      field: "name",
+      message: "must be at most 100 characters",
+    });
+    expect(authorsService.create).not.toHaveBeenCalled();
+  });
+
   it("responde 400 si el email no es válido", async () => {
     const res = await request(app).post("/authors").send({ name: "Ana", email: "sin-arroba" });
 
@@ -99,6 +112,18 @@ describe("POST /authors", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: "email already exists" });
+  });
+
+  it("responde 400 si la base rechaza un texto demasiado largo", async () => {
+    // Así llega el error de PostgreSQL cuando un texto supera el VARCHAR
+    authorsService.create.mockRejectedValue({ code: "22001" });
+
+    const res = await request(app)
+      .post("/authors")
+      .send({ name: "Ana", email: "ana@example.com", bio: "x" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "invalid data" });
   });
 
   it("responde 400 si el body no es JSON válido", async () => {
