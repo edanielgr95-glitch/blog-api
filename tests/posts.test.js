@@ -18,40 +18,38 @@ const post = {
 afterEach(() => jest.resetAllMocks());
 
 describe("GET /posts", () => {
-  it("responde 200 con la lista y el total en X-Total-Count", async () => {
-    postsService.findAll.mockResolvedValue({ posts: [post], total: 1 });
+  it("responde 200 con la lista completa", async () => {
+    postsService.findAll.mockResolvedValue([post]);
 
     const res = await request(app).get("/posts");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([post]);
-    expect(res.headers["x-total-count"]).toBe("1");
-    expect(postsService.findAll).toHaveBeenCalledWith({
-      limit: 20,
-      offset: 0,
-      published: undefined,
-    });
   });
 
-  it("aplica paginación y filtro published", async () => {
-    postsService.findAll.mockResolvedValue({ posts: [], total: 0 });
+  it("con ?page y ?limit responde la página pedida", async () => {
+    postsService.count.mockResolvedValue(5);
+    postsService.findAll.mockResolvedValue([post]);
 
-    const res = await request(app).get("/posts?limit=5&offset=10&published=true");
+    const res = await request(app).get("/posts?page=2&limit=2");
 
     expect(res.status).toBe(200);
-    expect(postsService.findAll).toHaveBeenCalledWith({
-      limit: 5,
-      offset: 10,
-      published: true,
-    });
+    expect(res.body).toEqual({ page: 2, limit: 2, total: 5, totalPages: 3, data: [post] });
+    expect(postsService.findAll).toHaveBeenCalledWith({ limit: 2, offset: 2 });
   });
 
-  it("responde 400 si limit o published no son válidos", async () => {
-    const res = await request(app).get("/posts?limit=0&published=quizas");
+  it("con ?published=true filtra los publicados", async () => {
+    postsService.findAll.mockResolvedValue([post]);
+
+    await request(app).get("/posts?published=true");
+
+    expect(postsService.findAll).toHaveBeenCalledWith({ published: true });
+  });
+
+  it("responde 400 si published no es true ni false", async () => {
+    const res = await request(app).get("/posts?published=quizas");
 
     expect(res.status).toBe(400);
-    const fields = res.body.error.details.map((d) => d.field);
-    expect(fields).toEqual(["limit", "published"]);
     expect(postsService.findAll).not.toHaveBeenCalled();
   });
 });
@@ -63,7 +61,7 @@ describe("GET /posts/:id", () => {
     const res = await request(app).get("/posts/1");
 
     expect(res.status).toBe(200);
-    expect(res.body.title).toBe(post.title);
+    expect(res.body).toEqual(post);
   });
 
   it("responde 404 si el post no existe", async () => {
@@ -72,6 +70,7 @@ describe("GET /posts/:id", () => {
     const res = await request(app).get("/posts/999");
 
     expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: "post not found" });
   });
 });
 
@@ -83,8 +82,7 @@ describe("GET /posts/author/:authorId", () => {
     const res = await request(app).get("/posts/author/1");
 
     expect(res.status).toBe(200);
-    expect(res.body.author).toEqual(author);
-    expect(res.body.posts).toEqual([post]);
+    expect(res.body).toEqual({ author, posts: [post] });
   });
 
   it("responde 404 si el author no existe", async () => {
@@ -116,21 +114,21 @@ describe("POST /posts", () => {
     const res = await request(app).post("/posts").send({ title: "" });
 
     expect(res.status).toBe(400);
-    const fields = res.body.error.details.map((d) => d.field);
-    expect(fields).toEqual(expect.arrayContaining(["author_id", "title", "content"]));
+    const fields = res.body.details.map((d) => d.field);
+    expect(fields).toEqual(["author_id", "title", "content"]);
     expect(postsService.create).not.toHaveBeenCalled();
   });
 
   it("responde 400 si el author_id no existe en la base", async () => {
-    const fkError = Object.assign(new Error("fk violation"), { code: "23503" });
-    postsService.create.mockRejectedValue(fkError);
+    // Así llega el error de PostgreSQL cuando una FK apunta a algo inexistente
+    postsService.create.mockRejectedValue({ code: "23503" });
 
     const res = await request(app)
       .post("/posts")
       .send({ author_id: 999, title: "T", content: "C" });
 
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe("INVALID_REFERENCE");
+    expect(res.body).toEqual({ error: "referenced author or post does not exist" });
   });
 });
 

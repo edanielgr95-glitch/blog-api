@@ -2,29 +2,38 @@ const pool = require("../db/pool");
 
 const COLUMNS = "id, author_id, title, content, published, created_at";
 
-async function findAll({ limit = 20, offset = 0, published } = {}) {
+// filters: { published, limit, offset } (todos opcionales)
+async function findAll(filters = {}) {
   const values = [];
-  let where = "";
+  let sql = `SELECT ${COLUMNS} FROM posts`;
 
-  if (published !== undefined) {
-    values.push(published);
-    where = `WHERE published = $${values.length}`;
+  if (filters.published !== undefined) {
+    values.push(filters.published);
+    sql += ` WHERE published = $${values.length}`;
   }
 
-  const countResult = await pool.query(
-    `SELECT COUNT(*)::int AS total FROM posts ${where}`,
-    values
-  );
+  sql += " ORDER BY id";
 
-  values.push(limit, offset);
-  const { rows } = await pool.query(
-    `SELECT ${COLUMNS} FROM posts ${where}
-     ORDER BY id
-     LIMIT $${values.length - 1} OFFSET $${values.length}`,
-    values
-  );
+  if (filters.limit !== undefined) {
+    values.push(filters.limit, filters.offset || 0);
+    sql += ` LIMIT $${values.length - 1} OFFSET $${values.length}`;
+  }
 
-  return { posts: rows, total: countResult.rows[0].total };
+  const { rows } = await pool.query(sql, values);
+  return rows;
+}
+
+async function count(filters = {}) {
+  const values = [];
+  let sql = "SELECT COUNT(*)::int AS total FROM posts";
+
+  if (filters.published !== undefined) {
+    values.push(filters.published);
+    sql += " WHERE published = $1";
+  }
+
+  const { rows } = await pool.query(sql, values);
+  return rows[0].total;
 }
 
 async function findById(id) {
@@ -32,7 +41,7 @@ async function findById(id) {
     `SELECT ${COLUMNS} FROM posts WHERE id = $1`,
     [id]
   );
-  return rows[0] ?? null;
+  return rows[0] || null;
 }
 
 async function findByAuthor(authorId) {
@@ -61,12 +70,12 @@ async function update(id, { author_id, title, content, published }) {
      RETURNING ${COLUMNS}`,
     [author_id, title, content, published, id]
   );
-  return rows[0] ?? null;
+  return rows[0] || null;
 }
 
 async function remove(id) {
-  const { rowCount } = await pool.query("DELETE FROM posts WHERE id = $1", [id]);
-  return rowCount > 0;
+  const result = await pool.query("DELETE FROM posts WHERE id = $1", [id]);
+  return result.rowCount > 0;
 }
 
-module.exports = { findAll, findById, findByAuthor, create, update, remove };
+module.exports = { findAll, count, findById, findByAuthor, create, update, remove };

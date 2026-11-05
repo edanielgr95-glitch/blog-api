@@ -1,11 +1,11 @@
-const { Router } = require("express");
+const express = require("express");
 const controller = require("../controllers/comments.controller");
-const { validateComment, validateIdParam } = require("../middlewares/validate");
+const { validateId, validateComment } = require("../middlewares/validate");
 
-const router = Router();
+const router = express.Router();
 
 router.get("/", controller.list);
 router.post("/", validateComment, controller.create);
-router.delete("/:id", validateIdParam("id"), controller.remove);
+router.delete("/:id", validateId("id"), controller.remove);
 
 module.exports = router;

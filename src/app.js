@@ -7,7 +7,7 @@ const logger = require("./middlewares/logger");
 const authorsRoutes = require("./routes/authors.routes");
 const postsRoutes = require("./routes/posts.routes");
 const commentsRoutes = require("./routes/comments.routes");
-const { errorHandler, notFoundHandler } = require("./middlewares/errorHandler");
+const { errorHandler, notFound } = require("./middlewares/errorHandler");
 
 const app = express();
 
@@ -35,7 +35,7 @@ app.use("/authors", authorsRoutes);
 app.use("/posts", postsRoutes);
 app.use("/comments", commentsRoutes);
 
-app.use(notFoundHandler);
+app.use(notFound);
 app.use(errorHandler);
 
 module.exports = app;

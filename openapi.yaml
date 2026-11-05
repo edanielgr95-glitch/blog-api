@@ -6,8 +6,9 @@ info:
     API REST para gestionar authors, posts y comments (modelo tipo JSONPlaceholder).
     Construida con Node.js, Express y PostgreSQL.
 
-    Todos los errores tienen el mismo formato:
-    `{ "error": { "code": "...", "message": "...", "details": [...] } }`
+    Los errores responden `{ "error": "mensaje" }`. Los errores de validación
+    agregan el detalle de cada campo:
+    `{ "error": "validation failed", "details": [{ "field": "name", "message": "is required" }] }`
 servers:
   - url: /
     description: Servidor actual
@@ -104,32 +105,34 @@ paths:
   /posts:
     get:
       tags: [Posts]
-      summary: Listar posts (con paginación y filtro)
+      summary: Listar posts (filtro y paginación opcionales)
+      description: |
+        Sin `page` ni `limit` devuelve la lista completa (array).
+        Con `page` y/o `limit` devuelve un objeto paginado:
+        `{ page, limit, total, totalPages, data }`.
       parameters:
-        - name: limit
-          in: query
-          description: Cantidad máxima de posts (1 a 100)
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-        - name: offset
-          in: query
-          description: Cuántos posts saltar
-          schema: { type: integer, minimum: 0, default: 0 }
         - name: published
           in: query
           description: Filtrar por publicados (true) o borradores (false)
           schema: { type: boolean }
+        - name: page
+          in: query
+          description: Número de página (por defecto 1)
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          description: Posts por página (por defecto 10, máximo 100)
+          schema: { type: integer, minimum: 1, maximum: 100 }
       responses:
         "200":
-          description: Lista de posts
-          headers:
-            X-Total-Count:
-              description: Total de posts que cumplen el filtro (sin paginar)
-              schema: { type: integer }
+          description: Lista de posts (array) o página de posts (objeto)
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: "#/components/schemas/Post" }
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/Post" }
+                  - $ref: "#/components/schemas/PostsPage"
         "400": { $ref: "#/components/responses/ValidationError" }
     post:
       tags: [Posts]
@@ -335,21 +338,27 @@ components:
         post_id: { type: integer, minimum: 1, example: 1 }
         author_id: { type: integer, minimum: 1, example: 2 }
         content: { type: string, minLength: 1, example: "¡Muy claro, gracias!" }
+    PostsPage:
+      type: object
+      properties:
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 10 }
+        total: { type: integer, example: 5 }
+        totalPages: { type: integer, example: 1 }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
     Error:
       type: object
       properties:
-        error:
-          type: object
-          properties:
-            code: { type: string, example: VALIDATION_ERROR }
-            message: { type: string, example: Invalid request data }
-            details:
-              type: array
-              items:
-                type: object
-                properties:
-                  field: { type: string, example: name }
-                  issue: { type: string, example: is required }
+        error: { type: string, example: validation failed }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string, example: name }
+              message: { type: string, example: is required }
 
   responses:
     ValidationError:
@@ -363,11 +372,11 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
           example:
-            error: { code: NOT_FOUND, message: Author not found }
+            error: author not found
     InternalError:
       description: Error interno del servidor
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
           example:
-            error: { code: INTERNAL_ERROR, message: Internal server error }
+            error: internal server error

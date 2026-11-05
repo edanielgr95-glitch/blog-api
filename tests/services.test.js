@@ -47,30 +47,33 @@ describe("authors.service", () => {
 });
 
 describe("posts.service", () => {
-  it("findAll aplica filtro published, limit y offset como parámetros", async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ total: 3 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] });
+  it("findAll con filtro y paginación usa parámetros, no valores pegados en el SQL", async () => {
+    pool.query.mockResolvedValue({ rows: [{ id: 1 }] });
 
-    const result = await postsService.findAll({ limit: 5, offset: 10, published: true });
+    const posts = await postsService.findAll({ published: true, limit: 5, offset: 10 });
 
-    expect(result).toEqual({ posts: [{ id: 1 }], total: 3 });
-    const [sql, params] = pool.query.mock.calls[1];
+    expect(posts).toEqual([{ id: 1 }]);
+    const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toContain("WHERE published = $1");
     expect(sql).toContain("LIMIT $2 OFFSET $3");
     expect(params).toEqual([true, 5, 10]);
   });
 
-  it("findAll sin filtro no agrega WHERE", async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ total: 0 }] })
-      .mockResolvedValueOnce({ rows: [] });
+  it("findAll sin filtros no agrega WHERE ni LIMIT", async () => {
+    pool.query.mockResolvedValue({ rows: [] });
 
     await postsService.findAll();
 
-    const [sql, params] = pool.query.mock.calls[1];
+    const [sql, params] = pool.query.mock.calls[0];
     expect(sql).not.toContain("WHERE");
-    expect(params).toEqual([20, 0]);
+    expect(sql).not.toContain("LIMIT");
+    expect(params).toEqual([]);
+  });
+
+  it("count devuelve el total de posts", async () => {
+    pool.query.mockResolvedValue({ rows: [{ total: 5 }] });
+
+    expect(await postsService.count()).toBe(5);
   });
 
   it("update devuelve null si el post no existe", async () => {

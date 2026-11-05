@@ -33,7 +33,6 @@ API REST construida con **Node.js + Express + PostgreSQL** que gestiona authors,
 | dotenv | Variables de entorno |
 | Jest + Supertest | Tests automatizados |
 | swagger-ui-express + yaml | Documentación OpenAPI en `/docs` |
-| GitHub Actions | Ejecuta los tests en cada push (CI) |
 | Railway | Deploy de la API y de la base de datos |
 
 ---
@@ -42,7 +41,6 @@ API REST construida con **Node.js + Express + PostgreSQL** que gestiona authors,
 
 ```
 blog-api/
-├── .github/workflows/ci.yml   # CI: corre los tests en cada push
 ├── db/
 │   ├── setup.sql              # Schema: tablas, PK, FK, constraints e índices
 │   └── seed.sql               # Datos de ejemplo
@@ -58,10 +56,9 @@ blog-api/
 │   ├── controllers/           # Lógica HTTP: lee la request y decide el status code
 │   ├── services/              # Acceso a datos: queries SQL parametrizadas
 │   ├── middlewares/
-│   │   ├── validate.js        # Validación de body, params y query
+│   │   ├── validate.js        # Validación del body y de los ids
 │   │   ├── errorHandler.js    # Manejo global de errores (400/404/500)
 │   │   └── logger.js          # Log de cada request (método, ruta, status, tiempo)
-│   └── utils/httpError.js     # Clase de error HTTP
 ├── tests/                     # Tests con Jest + Supertest
 ├── openapi.yaml               # Especificación OpenAPI 3
 ├── .env.example               # Variables de entorno de ejemplo
@@ -115,7 +112,7 @@ authors (1) ──────< (N) posts (1) ──────< (N) comments
 
 | Método | Ruta | Descripción | Respuestas |
 |---|---|---|---|
-| GET | `/posts` | Listar posts. Admite `?limit=`, `?offset=` y `?published=true\|false`. Devuelve el total en el header `X-Total-Count` | 200 · 400 |
+| GET | `/posts` | Listar posts. Filtro opcional `?published=true\|false`. Paginación opcional `?page=1&limit=10` | 200 · 400 |
 | GET | `/posts/:id` | Detalle de un post | 200 · 400 · 404 |
 | GET | `/posts/author/:authorId` | Posts de un author, con el detalle del author | 200 · 400 · 404 |
 | POST | `/posts` | Crear post | 201 · 400 |
@@ -155,17 +152,28 @@ HTTP/1.1 201 Created
 { "id": 1, "name": "Ana García", "email": "ana@example.com", "bio": "Backend dev", "created_at": "2026-11-05T04:00:00.000Z" }
 ```
 
-**Formato de error (igual en toda la API)**
+**Paginación de posts** (`GET /posts?page=1&limit=2`)
+
+```json
+{ "page": 1, "limit": 2, "total": 5, "totalPages": 3, "data": [ { "id": 1, "...": "..." }, { "id": 2, "...": "..." } ] }
+```
+
+Sin `page` ni `limit`, `GET /posts` devuelve la lista completa como array.
+
+**Formato de error**
+
+```http
+HTTP/1.1 404 Not Found
+
+{ "error": "author not found" }
+```
 
 ```http
 HTTP/1.1 400 Bad Request
 
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid request data",
-    "details": [{ "field": "name", "issue": "is required" }]
-  }
+  "error": "validation failed",
+  "details": [{ "field": "name", "message": "is required" }]
 }
 ```
 
@@ -240,11 +248,11 @@ La API queda en `http://localhost:3000` y la documentación en `http://localhost
 ## Tests
 
 ```bash
-npm test                 # corre los 45 tests
-npm run test:coverage    # además genera el reporte de cobertura (~88% de líneas)
+npm test                 # corre los 47 tests
+npm run test:coverage    # además genera el reporte de cobertura (~85% de líneas)
 ```
 
-**45 tests** con **Jest + Supertest**, en dos niveles:
+**47 tests** con **Jest + Supertest**, en dos niveles:
 
 | Archivo | Qué prueba | Cómo |
 |---|---|---|
@@ -253,7 +261,6 @@ npm run test:coverage    # además genera el reporte de cobertura (~88% de líne
 
 - Cubren los flujos exitosos (200, 201, 204) y los de error: 400 por validación, JSON inválido, email duplicado o FK inexistente; 404; 500 por falla de la base; y rutas inexistentes.
 - **No necesitan base de datos**, así que corren en cualquier máquina con `npm install`.
-- **GitHub Actions** corre los tests en cada push (`.github/workflows/ci.yml`).
 
 ---
 
@@ -324,16 +331,15 @@ Cada `git push` a `main` genera un nuevo deploy automáticamente.
 
 - **Arquitectura en capas** (`routes → middlewares → controllers → services`): cada capa tiene una sola responsabilidad y se puede probar por separado.
 - **Queries parametrizadas** (`$1, $2...`) en todos los services, para evitar SQL injection.
-- **Manejo centralizado de errores** en `errorHandler.js`, que traduce los errores de PostgreSQL a HTTP:
-  - `23505` (unique violation) → **400 Bad Request** (email duplicado)
-  - `23503` (foreign key violation) → **400 Bad Request** (author o post inexistente)
-  - `22P02`, `23502`, `23514` → **400 Bad Request**
-  - cualquier otro error → **500** (sin exponer detalles internos)
-- **Email duplicado → 400:** se respeta la lista de status codes del enunciado (200/201/204/400/404/500). La validación es doble: el middleware revisa el formato y la base garantiza la unicidad con `UNIQUE`.
+- **Manejo de errores:** cada controller usa `try/catch` y pasa los errores inesperados con `next(error)` al middleware global `errorHandler.js`, que traduce los errores de PostgreSQL a HTTP:
+  - `23505` (valor UNIQUE repetido) → **400** `email already exists`
+  - `23503` (FK a un registro inexistente) → **400** `referenced author or post does not exist`
+  - `22P02`, `23502`, `23514` (dato inválido) → **400**
+  - cualquier otro error → **500** `internal server error` (el detalle se registra en la terminal, no se envía al cliente)
+- **Email duplicado → 400:** respeta la lista de status codes del enunciado (200/201/204/400/404/500). La validación es doble: el middleware revisa que el email tenga `@` y la base garantiza la unicidad con `UNIQUE`.
 - **Integridad referencial:** borrar un author borra sus posts (`CASCADE`); borrar un post borra sus comments (`CASCADE`); borrar un author conserva sus comments en posts de otros, con `author_id = NULL` (`SET NULL`).
-- **Express 5:** los errores de funciones `async` llegan solos al middleware de errores, sin `try/catch` en cada controller.
 - **PUT = reemplazo completo:** se exigen todos los campos obligatorios.
-- **Paginación** en `GET /posts` con `limit` (máximo 100) y `offset`; el total se informa en el header `X-Total-Count` para no cambiar el formato de la respuesta.
+- **Paginación** en `GET /posts` con `?page=` y `?limit=` (máximo 100), con el formato `{ page, limit, total, totalPages, data }`.
 
 ---
 

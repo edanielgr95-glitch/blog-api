@@ -1,21 +1,17 @@
-const { Router } = require("express");
+const express = require("express");
 const controller = require("../controllers/posts.controller");
 const commentsController = require("../controllers/comments.controller");
-const {
-  validateIdParam,
-  validatePost,
-  validatePostsQuery,
-} = require("../middlewares/validate");
+const { validateId, validatePost } = require("../middlewares/validate");
 
-const router = Router();
+const router = express.Router();
 
-router.get("/", validatePostsQuery, controller.list);
-// Va antes de "/:id" para que "author" no se lea como un id
-router.get("/author/:authorId", validateIdParam("authorId"), controller.listByAuthor);
-router.get("/:id", validateIdParam("id"), controller.getById);
-router.get("/:id/comments", validateIdParam("id"), commentsController.listByPost);
+router.get("/", controller.list);
+// Va antes de "/:id" para que la palabra "author" no se lea como un id
+router.get("/author/:authorId", validateId("authorId"), controller.listByAuthor);
+router.get("/:id", validateId("id"), controller.getById);
+router.get("/:id/comments", validateId("id"), commentsController.listByPost);
 router.post("/", validatePost, controller.create);
-router.put("/:id", validateIdParam("id"), validatePost, controller.update);
-router.delete("/:id", validateIdParam("id"), controller.remove);
+router.put("/:id", validateId("id"), validatePost, controller.update);
+router.delete("/:id", validateId("id"), controller.remove);
 
 module.exports = router;

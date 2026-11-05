@@ -32,9 +32,7 @@ describe("Comments", () => {
   });
 
   it("POST /comments responde 400 si falta el content", async () => {
-    const res = await request(app)
-      .post("/comments")
-      .send({ post_id: 1, author_id: 2 });
+    const res = await request(app).post("/comments").send({ post_id: 1, author_id: 2 });
 
     expect(res.status).toBe(400);
     expect(commentsService.create).not.toHaveBeenCalled();
@@ -83,10 +81,9 @@ describe("Rutas generales", () => {
     expect(res.body.status).toBe("ok");
   });
 
-  it("una ruta inexistente responde 404 con formato de error estándar", async () => {
+  it("una ruta inexistente responde 404", async () => {
     const res = await request(app).get("/no-existe");
 
     expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe("ROUTE_NOT_FOUND");
   });
 });

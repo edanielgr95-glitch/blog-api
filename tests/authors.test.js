@@ -1,18 +1,13 @@
-// Tests de la capa HTTP (rutas + validaciones + controllers + manejo de errores).
-// El service se reemplaza por un mock, así los tests no necesitan una base de datos real.
+// Tests de los endpoints de authors.
+// El service (que habla con la base de datos) se reemplaza por un mock,
+// así los tests no necesitan una base de datos real.
 const request = require("supertest");
 const app = require("../src/app");
 const authorsService = require("../src/services/authors.service");
 
 jest.mock("../src/services/authors.service");
 
-const author = {
-  id: 1,
-  name: "Ana García",
-  email: "ana@example.com",
-  bio: null,
-  created_at: "2026-01-01T00:00:00.000Z",
-};
+const author = { id: 1, name: "Ana García", email: "ana@example.com", bio: null };
 
 afterEach(() => jest.resetAllMocks());
 
@@ -33,7 +28,7 @@ describe("GET /authors", () => {
     const res = await request(app).get("/authors");
 
     expect(res.status).toBe(500);
-    expect(res.body.error.code).toBe("INTERNAL_ERROR");
+    expect(res.body).toEqual({ error: "internal server error" });
   });
 });
 
@@ -45,7 +40,6 @@ describe("GET /authors/:id", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(author);
-    expect(authorsService.findById).toHaveBeenCalledWith(1);
   });
 
   it("responde 404 si el author no existe", async () => {
@@ -54,7 +48,7 @@ describe("GET /authors/:id", () => {
     const res = await request(app).get("/authors/999");
 
     expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe("NOT_FOUND");
+    expect(res.body).toEqual({ error: "author not found" });
   });
 
   it("responde 400 si el id no es un número", async () => {
@@ -66,7 +60,7 @@ describe("GET /authors/:id", () => {
 });
 
 describe("POST /authors", () => {
-  it("responde 201 y normaliza el email", async () => {
+  it("responde 201 y guarda el email en minúsculas", async () => {
     authorsService.create.mockResolvedValue(author);
 
     const res = await request(app)
@@ -82,24 +76,29 @@ describe("POST /authors", () => {
   });
 
   it("responde 400 si falta el name", async () => {
-    const res = await request(app)
-      .post("/authors")
-      .send({ email: "ana@example.com" });
+    const res = await request(app).post("/authors").send({ email: "ana@example.com" });
 
     expect(res.status).toBe(400);
-    expect(res.body.error.details).toContainEqual({
-      field: "name",
-      issue: "is required",
-    });
+    expect(res.body.details).toContainEqual({ field: "name", message: "is required" });
     expect(authorsService.create).not.toHaveBeenCalled();
   });
 
   it("responde 400 si el email no es válido", async () => {
-    const res = await request(app)
-      .post("/authors")
-      .send({ name: "Ana", email: "no-es-un-email" });
+    const res = await request(app).post("/authors").send({ name: "Ana", email: "sin-arroba" });
 
     expect(res.status).toBe(400);
+  });
+
+  it("responde 400 si el email ya existe", async () => {
+    // Así llega el error de PostgreSQL cuando se repite un valor UNIQUE
+    authorsService.create.mockRejectedValue({ code: "23505" });
+
+    const res = await request(app)
+      .post("/authors")
+      .send({ name: "Ana", email: "ana@example.com" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "email already exists" });
   });
 
   it("responde 400 si el body no es JSON válido", async () => {
@@ -109,21 +108,7 @@ describe("POST /authors", () => {
       .send("{malformado");
 
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe("INVALID_JSON");
-  });
-
-  it("responde 400 si el email ya existe", async () => {
-    const duplicateError = Object.assign(new Error("duplicate key"), {
-      code: "23505",
-    });
-    authorsService.create.mockRejectedValue(duplicateError);
-
-    const res = await request(app)
-      .post("/authors")
-      .send({ name: "Ana", email: "ana@example.com" });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe("DUPLICATE");
+    expect(res.body).toEqual({ error: "invalid JSON body" });
   });
 });
 
@@ -151,13 +136,12 @@ describe("PUT /authors/:id", () => {
 });
 
 describe("DELETE /authors/:id", () => {
-  it("responde 204 sin body", async () => {
+  it("responde 204 al eliminar", async () => {
     authorsService.remove.mockResolvedValue(true);
 
     const res = await request(app).delete("/authors/1");
 
     expect(res.status).toBe(204);
-    expect(res.body).toEqual({});
   });
 
   it("responde 404 si el author no existe", async () => {

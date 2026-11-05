@@ -1,136 +1,88 @@
-const { HttpError } = require("../utils/httpError");
+// Middlewares de validación: revisan los datos ANTES de llegar al controller.
+// Si algo está mal, responden 400 y la request no sigue.
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isEmptyText(value) {
+  return typeof value !== "string" || value.trim() === "";
+}
 
-const isNonEmptyString = (value) =>
-  typeof value === "string" && value.trim().length > 0;
+function isPositiveId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0;
+}
 
-const isPositiveInteger = (value) =>
-  (typeof value === "number" && Number.isInteger(value) && value > 0) ||
-  (typeof value === "string" && /^\d+$/.test(value) && Number(value) > 0);
+function validationError(res, details) {
+  return res.status(400).json({ error: "validation failed", details });
+}
 
-const fail = (details) =>
-  new HttpError(400, "VALIDATION_ERROR", "Invalid request data", details);
-
-function validateIdParam(paramName) {
+// Valida un parámetro de la URL, por ejemplo /authors/:id
+function validateId(paramName) {
   return (req, res, next) => {
-    const value = req.params[paramName];
-    if (!/^\d+$/.test(value) || Number(value) <= 0) {
-      return next(
-        fail([{ field: paramName, issue: "must be a positive integer" }])
-      );
+    if (!isPositiveId(req.params[paramName])) {
+      return res
+        .status(400)
+        .json({ error: `${paramName} must be a positive number` });
     }
     next();
   };
 }
 
 function validateAuthor(req, res, next) {
-  const { name, email, bio } = req.body ?? {};
+  const { name, email, bio } = req.body || {};
   const details = [];
 
-  if (!isNonEmptyString(name)) {
-    details.push({ field: "name", issue: "is required" });
+  if (isEmptyText(name)) {
+    details.push({ field: "name", message: "is required" });
   }
-  if (!isNonEmptyString(email)) {
-    details.push({ field: "email", issue: "is required" });
-  } else if (!EMAIL_REGEX.test(email.trim())) {
-    details.push({ field: "email", issue: "must be a valid email" });
+  if (isEmptyText(email)) {
+    details.push({ field: "email", message: "is required" });
+  } else if (!email.includes("@")) {
+    details.push({ field: "email", message: "must be a valid email" });
   }
   if (bio !== undefined && bio !== null && typeof bio !== "string") {
-    details.push({ field: "bio", issue: "must be a string" });
+    details.push({ field: "bio", message: "must be a string" });
   }
 
-  if (details.length) return next(fail(details));
-
-  req.body = {
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    bio: bio ?? null,
-  };
+  if (details.length > 0) return validationError(res, details);
   next();
 }
 
 function validatePost(req, res, next) {
-  const { author_id, title, content, published } = req.body ?? {};
+  const { author_id, title, content, published } = req.body || {};
   const details = [];
 
-  if (!isPositiveInteger(author_id)) {
-    details.push({ field: "author_id", issue: "is required and must be a positive integer" });
+  if (!isPositiveId(author_id)) {
+    details.push({ field: "author_id", message: "is required and must be a positive number" });
   }
-  if (!isNonEmptyString(title)) {
-    details.push({ field: "title", issue: "is required" });
+  if (isEmptyText(title)) {
+    details.push({ field: "title", message: "is required" });
   }
-  if (!isNonEmptyString(content)) {
-    details.push({ field: "content", issue: "is required" });
+  if (isEmptyText(content)) {
+    details.push({ field: "content", message: "is required" });
   }
   if (published !== undefined && typeof published !== "boolean") {
-    details.push({ field: "published", issue: "must be a boolean" });
+    details.push({ field: "published", message: "must be true or false" });
   }
 
-  if (details.length) return next(fail(details));
-
-  req.body = {
-    author_id: Number(author_id),
-    title: title.trim(),
-    content: content.trim(),
-    published: published ?? false,
-  };
-  next();
-}
-
-// Paginación y filtro para GET /posts: ?limit=10&offset=0&published=true
-function validatePostsQuery(req, res, next) {
-  const { limit = "20", offset = "0", published } = req.query;
-  const details = [];
-
-  if (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100) {
-    details.push({ field: "limit", issue: "must be an integer between 1 and 100" });
-  }
-  if (!/^\d+$/.test(offset)) {
-    details.push({ field: "offset", issue: "must be an integer >= 0" });
-  }
-  if (published !== undefined && published !== "true" && published !== "false") {
-    details.push({ field: "published", issue: "must be true or false" });
-  }
-
-  if (details.length) return next(fail(details));
-
-  res.locals.query = {
-    limit: Number(limit),
-    offset: Number(offset),
-    published: published === undefined ? undefined : published === "true",
-  };
+  if (details.length > 0) return validationError(res, details);
   next();
 }
 
 function validateComment(req, res, next) {
-  const { post_id, author_id, content } = req.body ?? {};
+  const { post_id, author_id, content } = req.body || {};
   const details = [];
 
-  if (!isPositiveInteger(post_id)) {
-    details.push({ field: "post_id", issue: "is required and must be a positive integer" });
+  if (!isPositiveId(post_id)) {
+    details.push({ field: "post_id", message: "is required and must be a positive number" });
   }
-  if (!isPositiveInteger(author_id)) {
-    details.push({ field: "author_id", issue: "is required and must be a positive integer" });
+  if (!isPositiveId(author_id)) {
+    details.push({ field: "author_id", message: "is required and must be a positive number" });
   }
-  if (!isNonEmptyString(content)) {
-    details.push({ field: "content", issue: "is required" });
+  if (isEmptyText(content)) {
+    details.push({ field: "content", message: "is required" });
   }
 
-  if (details.length) return next(fail(details));
-
-  req.body = {
-    post_id: Number(post_id),
-    author_id: Number(author_id),
-    content: content.trim(),
-  };
+  if (details.length > 0) return validationError(res, details);
   next();
 }
 
-module.exports = {
-  validateIdParam,
-  validateComment,
-  validateAuthor,
-  validatePost,
-  validatePostsQuery,
-};
+module.exports = { validateId, validateAuthor, validatePost, validateComment };

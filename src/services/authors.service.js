@@ -14,7 +14,7 @@ async function findById(id) {
     `SELECT ${COLUMNS} FROM authors WHERE id = $1`,
     [id]
   );
-  return rows[0] ?? null;
+  return rows[0] || null;
 }
 
 async function create({ name, email, bio }) {
@@ -35,14 +35,14 @@ async function update(id, { name, email, bio }) {
      RETURNING ${COLUMNS}`,
     [name, email, bio, id]
   );
-  return rows[0] ?? null;
+  return rows[0] || null;
 }
 
 async function remove(id) {
-  const { rowCount } = await pool.query("DELETE FROM authors WHERE id = $1", [
+  const result = await pool.query("DELETE FROM authors WHERE id = $1", [
     id,
   ]);
-  return rowCount > 0;
+  return result.rowCount > 0;
 }
 
 module.exports = { findAll, findById, create, update, remove };

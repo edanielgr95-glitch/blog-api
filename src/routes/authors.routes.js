@@ -1,13 +1,13 @@
-const { Router } = require("express");
+const express = require("express");
 const controller = require("../controllers/authors.controller");
-const { validateIdParam, validateAuthor } = require("../middlewares/validate");
+const { validateId, validateAuthor } = require("../middlewares/validate");
 
-const router = Router();
+const router = express.Router();
 
 router.get("/", controller.list);
-router.get("/:id", validateIdParam("id"), controller.getById);
+router.get("/:id", validateId("id"), controller.getById);
 router.post("/", validateAuthor, controller.create);
-router.put("/:id", validateIdParam("id"), validateAuthor, controller.update);
-router.delete("/:id", validateIdParam("id"), controller.remove);
+router.put("/:id", validateId("id"), validateAuthor, controller.update);
+router.delete("/:id", validateId("id"), controller.remove);
 
 module.exports = router;
