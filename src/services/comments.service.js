@@ -9,6 +9,14 @@ async function findAll() {
   return rows;
 }
 
+async function findById(id) {
+  const { rows } = await pool.query(
+    `SELECT ${COLUMNS} FROM comments WHERE id = $1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
 async function findByPost(postId) {
   const { rows } = await pool.query(
     `SELECT c.id, c.post_id, c.author_id, c.content, c.created_at,
@@ -39,4 +47,4 @@ async function remove(id) {
   return result.rowCount > 0;
 }
 
-module.exports = { findAll, findByPost, create, remove };
+module.exports = { findAll, findById, findByPost, create, remove };

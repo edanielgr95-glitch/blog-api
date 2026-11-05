@@ -10,6 +10,18 @@ async function list(req, res, next) {
   }
 }
 
+async function getById(req, res, next) {
+  try {
+    const comment = await commentsService.findById(Number(req.params.id));
+    if (!comment) {
+      return res.status(404).json({ error: "comment not found" });
+    }
+    res.status(200).json(comment);
+  } catch (error) {
+    next(error);
+  }
+}
+
 // GET /posts/:id/comments → los comments de un post
 async function listByPost(req, res, next) {
   try {
@@ -51,4 +63,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, listByPost, create, remove };
+module.exports = { list, getById, listByPost, create, remove };
