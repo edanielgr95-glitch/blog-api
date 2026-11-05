@@ -2,8 +2,9 @@
 
 API REST construida con **Node.js + Express + PostgreSQL** que gestiona authors, posts y comments (modelo tipo JSONPlaceholder). Incluye validaciones, manejo centralizado de errores, tests automatizados con Jest + Supertest, documentación OpenAPI con Swagger UI y deploy en Railway.
 
-- **URL pública:** `https://TU-APP.up.railway.app` ← _se completa después del deploy_
-- **Documentación interactiva:** `https://TU-APP.up.railway.app/docs`
+- **URL pública:** https://blog-api-production-baf3.up.railway.app
+- **Documentación interactiva (Swagger):** https://blog-api-production-baf3.up.railway.app/docs
+- **Repositorio:** https://github.com/edanielgr95-glitch/blog-api
 
 ---
 
@@ -184,7 +185,7 @@ HTTP/1.1 400 Bad Request
 **1. Clonar e instalar dependencias**
 
 ```bash
-git clone https://github.com/TU-USUARIO/blog-api.git
+git clone https://github.com/edanielgr95-glitch/blog-api.git
 cd blog-api
 npm install
 ```
@@ -288,7 +289,7 @@ Railway asigna a cada servicio una URL **interna** (solo accesible dentro del pr
 
 | Servicio | Internal URL (red privada de Railway) | Public URL (internet) |
 |---|---|---|
-| **API** | `blog-api.railway.internal` | `https://TU-APP.up.railway.app` (se genera en **Settings → Networking → Generate Domain**) |
+| **API** | `blog-api.railway.internal` | `https://blog-api-production-baf3.up.railway.app` (se genera en **Settings → Networking → Generate Domain**) |
 | **PostgreSQL** | `postgres.railway.internal:5432` (variable `DATABASE_URL`) | `xxxx.proxy.rlwy.net:PUERTO` (variable `DATABASE_PUBLIC_URL`, requiere activar **TCP Proxy**) |
 
 - La API se conecta a la base por la **URL interna**: es más rápida, no sale a internet y no consume tráfico público.
@@ -311,8 +312,8 @@ En el servicio de la API → **Settings → Networking → Generate Domain**.
 ### 6. Verificar
 
 ```bash
-curl https://TU-APP.up.railway.app/health
-curl https://TU-APP.up.railway.app/authors
+curl https://blog-api-production-baf3.up.railway.app/health
+curl https://blog-api-production-baf3.up.railway.app/authors
 ```
 
 Cada `git push` a `main` genera un nuevo deploy automáticamente.
